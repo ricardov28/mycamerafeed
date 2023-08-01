@@ -35,6 +35,28 @@
                         console.error('WebSocket error:', error);
                     };
 
+                    webSocket.onmessage = function onMessage(message) {
+                        try {
+                            const parsedMessage = JSON.parse(message.data);
+                            const iotData = parsedMessage.image_data;
+
+                            // Create the image element for the latest snapshot
+                            const imageElement = document.createElement('img');
+                            imageElement.src = 'data:image/jpeg;base64,' + iotData;
+                            imageElement.style.width = '40%'; // Set the maximum width for the image
+                            imageElement.style.height = 'auto'; // Set the maximum height for the image
+
+                            // Create the container element
+                            const containerElement = document.createElement('div');
+                            containerElement.appendChild(imageElement);
+
+                            // Add the container element to the image galleries
+                            imageGalleriesElement.appendChild(containerElement);
+                        } catch (error) {
+                            console.error('Error processing message:', error);
+                        }
+                    };
+
                     // Start capturing and sending frames after the WebSocket is open
                     captureAndSendFrame();
                 } catch (error) {
