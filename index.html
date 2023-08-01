@@ -60,6 +60,9 @@
                 // Play the video to start capturing frames
                 videoElement.play();
 
+                // Wait for the video to be fully loaded
+                await new Promise(resolve => videoElement.onloadeddata = resolve);
+
                 // Create a canvas element to draw the video frame
                 const canvas = document.createElement('canvas');
                 canvas.width = videoElement.videoWidth;
