@@ -20,9 +20,11 @@
         document.addEventListener("DOMContentLoaded", function (event) {
             imageGalleriesElement = document.getElementById('imageGalleries');
 
-            const res = fetch(`https://fromeventtoweb.azurewebsites.net/api/negotiate?id=${1}`)
-                .then(response => response.json())
-                .then(data => {
+            // Function to open WebSocket
+            async function connectWebSocket() {
+                try {
+                    const res = await fetch(`https://fromeventtoweb.azurewebsites.net/api/negotiate?id=${1}`);
+                    const data = await res.json();
                     webSocket = new WebSocket(data.url);
 
                     webSocket.onopen = function onOpen() {
@@ -42,10 +44,13 @@
                     webSocket.onerror = function onError(error) {
                         console.error('WebSocket error:', error);
                     };
-                })
-                .catch(error => {
+                } catch (error) {
                     console.error('Error fetching WebSocket data:', error);
-                });
+                }
+            }
+
+            // Call the function to open WebSocket
+            connectWebSocket();
         });
 
         // Function to capture camera snapshot and send it to WebSocket
