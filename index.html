@@ -29,8 +29,6 @@
 
                     webSocket.onopen = function onOpen() {
                         console.log('WebSocket connection is open');
-                        // Start capturing and sending frames
-                        captureAndSendFrame();
                     };
 
                     webSocket.onclose = function onClose() {
@@ -44,6 +42,9 @@
                     webSocket.onerror = function onError(error) {
                         console.error('WebSocket error:', error);
                     };
+
+                    // Start capturing and sending frames after the WebSocket is open
+                    captureAndSendFrame();
                 } catch (error) {
                     console.error('Error fetching WebSocket data:', error);
                 }
