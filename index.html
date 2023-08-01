@@ -1,16 +1,17 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Camera Stream with Azure Web PubSub</title>
+  <title>Camera Stream to Azure Event Hub</title>
 </head>
 <body>
   <h1>Camera Stream</h1>
   <video id="camera-feed" autoplay></video>
 
-  <script src="https://unpkg.com/@azure/web-pubsub"></script>
+  <script src="https://unpkg.com/@azure/event-hubs"></script>
   <script>
-    // Your Azure Web PubSub connection string
-    const connectionString = "Endpoint=https://ricoapp.webpubsub.azure.com;AccessKey=/+vqJpOFXIjpySQDjXycC196JDpUZ0a7fK4Db2o8YS4=;Version=1.0;";
+    // Azure Event Hub connection string
+    const connectionString = "Endpoint=sb://dronepicstandard.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=se+CPdsp34rL8VFmEmicGwy3G72jb62VV+AEhBtvl2k=";
+    const eventHubName = "dronerpicamera";
 
     const videoElement = document.getElementById("camera-feed");
 
@@ -18,22 +19,26 @@
     function handleSuccess(stream) {
       videoElement.srcObject = stream;
 
-      // Connect to the Azure Web PubSub service
-      const client = new WebPubSub.WebPubSubClient(connectionString);
-      const hub = client.hub("camera");
+      // Create an Event Hub client
+      const client = new EventHubs.EventHubProducerClient(connectionString, eventHubName);
 
-      // Function to send camera frames to Azure Web PubSub
-      function sendFrame(frame) {
-        hub.send("cameraStream", { data: frame });
+      // Function to send camera frames to Azure Event Hub
+      async function sendFrame(frame) {
+        try {
+          const data = { frame: frame };
+          await client.sendBatch([{ body: JSON.stringify(data) }]);
+        } catch (error) {
+          console.error("Error sending frame to Event Hub:", error);
+        }
       }
 
-      // Start capturing camera frames and send them to Azure Web PubSub
+      // Start capturing camera frames and send them to Azure Event Hub
       const mediaRecorder = new MediaRecorder(stream);
       mediaRecorder.ondataavailable = (event) => {
         const reader = new FileReader();
         reader.onload = () => {
           const frameData = reader.result.split(",")[1];
-          sendFrame(frameData); // Sending the frame to Web PubSub
+          sendFrame(frameData); // Sending the frame to Event Hub
         };
         reader.readAsDataURL(event.data);
       };
