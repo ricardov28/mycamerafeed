@@ -7,38 +7,20 @@
   <h1>Camera Stream</h1>
   <video id="camera-feed" autoplay></video>
 
-  <script src="https://cdn.jsdelivr.net/npm/@azure/event-hubs@5.3.0/dist/esm/index.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/0.23.0/axios.min.js"></script>
   <script>
-    // Azure Event Hub connection string
-    const connectionString = "Endpoint=sb://dronepicstandard.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=se+CPdsp34rL8VFmEmicGwy3G72jb62VV+AEhBtvl2k=";
-    const eventHubName = "dronerpicamera";
-
-    const videoElement = document.getElementById("camera-feed");
-
     // Function to handle getUserMedia success
     function handleSuccess(stream) {
+      const videoElement = document.getElementById("camera-feed");
       videoElement.srcObject = stream;
 
-      // Create an Event Hub client
-      const client = new EventHubs.EventHubProducerClient(connectionString, eventHubName);
-
-      // Function to send camera frames to Azure Event Hub
-      async function sendFrame(frame) {
-        try {
-          const data = { frame: frame };
-          await client.sendBatch([{ body: JSON.stringify(data) }]);
-        } catch (error) {
-          console.error("Error sending frame to Event Hub:", error);
-        }
-      }
-
-      // Start capturing camera frames and send them to Azure Event Hub
+      // Start capturing camera frames and send them to the server
       const mediaRecorder = new MediaRecorder(stream);
       mediaRecorder.ondataavailable = (event) => {
         const reader = new FileReader();
         reader.onload = () => {
           const frameData = reader.result.split(",")[1];
-          sendFrame(frameData); // Sending the frame to Event Hub
+          sendFrameToServer(frameData); // Sending the frame to the server
         };
         reader.readAsDataURL(event.data);
       };
@@ -50,6 +32,21 @@
     // Function to handle getUserMedia error
     function handleError(error) {
       console.error("Error accessing the camera:", error);
+    }
+
+    // Function to send camera frame to the server
+    function sendFrameToServer(frameData) {
+      const endpoint = "https://your-server-url.com/api/cameraframes"; // Replace with your server endpoint
+      const data = { frame: frameData };
+
+      // Send the camera frame to the server using Axios
+      axios.post(endpoint, data)
+        .then(response => {
+          // Success callback (optional)
+        })
+        .catch(error => {
+          console.error("Error sending frame to the server:", error);
+        });
     }
 
     // Check if getUserMedia is available in the browser
