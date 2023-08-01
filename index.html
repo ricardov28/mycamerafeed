@@ -1,19 +1,45 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Camera Preview</title>
+  <title>Camera Stream with Azure Web PubSub</title>
 </head>
 <body>
-  <h1>Camera Preview</h1>
+  <h1>Camera Stream</h1>
   <video id="camera-feed" autoplay></video>
 
+  <script src="https://unpkg.com/@azure/web-pubsub"></script>
   <script>
-    // JavaScript code to access the camera and display the live feed
+    // Your Azure Web PubSub connection string
+    const connectionString = "Endpoint=https://ricoapp.webpubsub.azure.com;AccessKey=/+vqJpOFXIjpySQDjXycC196JDpUZ0a7fK4Db2o8YS4=;Version=1.0;";
+
     const videoElement = document.getElementById("camera-feed");
 
     // Function to handle getUserMedia success
     function handleSuccess(stream) {
       videoElement.srcObject = stream;
+
+      // Connect to the Azure Web PubSub service
+      const client = new WebPubSub.WebPubSubClient(connectionString);
+      const hub = client.hub("camera");
+
+      // Function to send camera frames to Azure Web PubSub
+      function sendFrame(frame) {
+        hub.send("cameraStream", { data: frame });
+      }
+
+      // Start capturing camera frames and send them to Azure Web PubSub
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorder.ondataavailable = (event) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const frameData = reader.result.split(",")[1];
+          sendFrame(frameData); // Sending the frame to Web PubSub
+        };
+        reader.readAsDataURL(event.data);
+      };
+
+      // Start recording
+      mediaRecorder.start();
     }
 
     // Function to handle getUserMedia error
