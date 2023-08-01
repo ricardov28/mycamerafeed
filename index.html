@@ -31,14 +31,6 @@
                         console.log('WebSocket connection is open');
                     };
 
-                    webSocket.onclose = function onClose() {
-                        console.log('WebSocket connection is closed');
-                        // Try to reopen the WebSocket after a delay (e.g., 5 seconds)
-                        setTimeout(() => {
-                            connectWebSocket();
-                        }, 5000);
-                    };
-
                     webSocket.onerror = function onError(error) {
                         console.error('WebSocket error:', error);
                     };
