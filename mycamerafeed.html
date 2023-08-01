@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Camera Preview</title>
+</head>
+<body>
+  <h1>Camera Preview</h1>
+  <video id="camera-feed" autoplay></video>
+
+  <script>
+    // JavaScript code to access the camera and display the live feed
+    const videoElement = document.getElementById("camera-feed");
+
+    // Function to handle getUserMedia success
+    function handleSuccess(stream) {
+      videoElement.srcObject = stream;
+    }
+
+    // Function to handle getUserMedia error
+    function handleError(error) {
+      console.error("Error accessing the camera:", error);
+    }
+
+    // Check if getUserMedia is available in the browser
+    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+      // Request access to the camera
+      navigator.mediaDevices
+        .getUserMedia({ video: true })
+        .then(handleSuccess)
+        .catch(handleError);
+    } else {
+      console.error("getUserMedia is not available in this browser.");
+    }
+  </script>
+</body>
+</html>
