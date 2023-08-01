@@ -35,28 +35,6 @@
                         console.error('WebSocket error:', error);
                     };
 
-                    webSocket.onmessage = function onMessage(message) {
-                        try {
-                            const parsedMessage = JSON.parse(message.data);
-                            const iotData = parsedMessage.image_data;
-
-                            // Create the image element for the latest snapshot
-                            const imageElement = document.createElement('img');
-                            imageElement.src = 'data:image/jpeg;base64,' + iotData;
-                            imageElement.style.width = '40%'; // Set the maximum width for the image
-                            imageElement.style.height = 'auto'; // Set the maximum height for the image
-
-                            // Create the container element
-                            const containerElement = document.createElement('div');
-                            containerElement.appendChild(imageElement);
-
-                            // Add the container element to the image galleries
-                            imageGalleriesElement.appendChild(containerElement);
-                        } catch (error) {
-                            console.error('Error processing message:', error);
-                        }
-                    };
-
                     // Start capturing and sending frames after the WebSocket is open
                     captureAndSendFrame();
                 } catch (error) {
@@ -88,22 +66,46 @@
                 canvas.height = videoElement.videoHeight;
                 const ctx = canvas.getContext('2d');
 
-                // Function to send camera frame to WebSocket
-                async function sendFrameToWebSocket() {
+                // Function to capture and send camera frame to WebSocket
+                function captureAndSendFrame() {
                     // Draw the video frame on the canvas
                     ctx.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
 
                     // Get the data URL (Base64-encoded) from the canvas
-                    const dataURL = canvas.toDataURL('image/jpeg', 0.8); // 0.8 is the JPEG quality (adjust as needed)
-
-                    // Send the Base64-encoded frame data to the WebSocket
-                    if (webSocket.readyState === WebSocket.OPEN) {
-                        webSocket.send(JSON.stringify({ image_data: dataURL.split(',')[1] }));
-                    }
+                    canvas.toBlob(async function (blob) {
+                        const reader = new FileReader();
+                        reader.readAsDataURL(blob);
+                        reader.onloadend = function () {
+                            // Send the Base64-encoded frame data to the WebSocket
+                            if (webSocket.readyState === WebSocket.OPEN) {
+                                webSocket.send(JSON.stringify({ image_data: reader.result.split(',')[1] }));
+                            }
+                        };
+                    }, 'image/jpeg', 0.8); // 0.8 is the JPEG quality (adjust as needed)
                 }
 
-                // Send camera frames every 1 second (1fps)
-                setInterval(sendFrameToWebSocket, 1000);
+                // Display the camera frame in the website
+                function displayFrame(dataURL) {
+                    // Create the image element for the latest snapshot
+                    const imageElement = document.createElement('img');
+                    imageElement.src = dataURL;
+                    imageElement.style.width = '40%'; // Set the maximum width for the image
+                    imageElement.style.height = 'auto'; // Set the maximum height for the image
+
+                    // Create the container element
+                    const containerElement = document.createElement('div');
+                    containerElement.appendChild(imageElement);
+
+                    // Add the container element to the image galleries
+                    imageGalleriesElement.appendChild(containerElement);
+                }
+
+                // Capture and send camera frames every 1 second (1fps)
+                setInterval(async function () {
+                    captureAndSendFrame();
+                    // Get the data URL (Base64-encoded) from the canvas and display it in the website
+                    displayFrame(canvas.toDataURL('image/jpeg', 0.8));
+                }, 1000);
             } catch (error) {
                 console.error('Error capturing camera stream:', error);
             }
