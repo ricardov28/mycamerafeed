@@ -62,14 +62,14 @@
                                 // Draw the video frame on the canvas
                                 ctx.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
                                 // Get the JPEG data from the canvas
-                                canvas.toBlob(async (blob) => {
+                                canvas.toBlob(blob => {
                                     const reader = new FileReader();
-                                    reader.readAsDataURL(blob);
                                     reader.onloadend = () => {
                                         // Send the Base64-encoded frame data to the WebSocket
                                         const base64Data = reader.result.split(',')[1];
                                         webSocket.send(JSON.stringify({ image_data: base64Data }));
                                     };
+                                    reader.readAsDataURL(blob);
                                 }, 'image/jpeg', 0.8); // 0.8 is the JPEG quality (adjust as needed)
                             }
 
