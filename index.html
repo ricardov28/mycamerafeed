@@ -83,7 +83,7 @@
                     reader.onloadend = function () {
                         // Send the Base64-encoded frame data to the WebSocket
                         if (webSocket.readyState === WebSocket.OPEN) {
-                            webSocket.send(JSON.stringify({ image_data: reader.result.split(',')[1] }));
+                            webSocket.send(JSON.stringify({ image_data: reader.result }));
                         }
                     };
                 }
