@@ -77,58 +77,38 @@
                     // Get the data URL (Base64-encoded) from the canvas
                     const dataURL = canvas.toDataURL('image/jpeg', 0.8); // 0.8 is the JPEG quality (adjust as needed)
 
-                    // Create a Blob object from the data URL
-                    const blob = dataURLToBlob(dataURL);
+                    // Send the Base64-encoded frame data to the WebSocket
+                    if (webSocket.readyState === WebSocket.OPEN) {
+                        webSocket.send(JSON.stringify({ image_data: dataURL }));
+                    }
 
-                    // Use FileReader to read the Blob as data URL
-                    const reader = new FileReader();
-                    reader.readAsDataURL(blob);
-                    reader.onloadend = function () {
-                        // Send the Base64-encoded frame data to the WebSocket
-                        if (webSocket.readyState === WebSocket.OPEN) {
-                            webSocket.send(JSON.stringify({ image_data: reader.result }));
-                        }
-                    };
+                    // Display the camera frame in the website
+                    displayFrame(dataURL);
                 }
 
-                // Display the camera frame in the website
+                // Function to display the camera frame in the website
                 function displayFrame(dataURL) {
                     // Create the image element for the latest snapshot
                     const imageElement = document.createElement('img');
                     imageElement.src = dataURL;
-                    imageElement.style.width = '40%'; // Set the maximum width for the image
-                    imageElement.style.height = 'auto'; // Set the maximum height for the image
+                    imageElement.style.width = '100%'; // Set the maximum width for the image (full width)
+                    imageElement.style.height = 'auto'; // Set the maximum height for the image (maintain aspect ratio)
 
-                    // Create the container element
-                    const containerElement = document.createElement('div');
-                    containerElement.appendChild(imageElement);
+                    // Remove the last image element from the image gallery if exists
+                    const lastImageElement = imageGalleriesElement.lastChild;
+                    if (lastImageElement && lastImageElement.tagName === 'IMG') {
+                        imageGalleriesElement.removeChild(lastImageElement);
+                    }
 
-                    // Add the container element to the image galleries
-                    imageGalleriesElement.appendChild(containerElement);
+                    // Add the new image element to the image gallery
+                    imageGalleriesElement.appendChild(imageElement);
                 }
 
                 // Capture and send camera frames every 1 second (1fps)
-                setInterval(async function () {
-                    captureAndSendFrame();
-                    // Get the data URL (Base64-encoded) from the canvas and display it in the website
-                    displayFrame(canvas.toDataURL('image/jpeg', 0.8));
-                }, 1000);
+                setInterval(captureAndSendFrame, 1000);
             } catch (error) {
                 console.error('Error capturing camera stream:', error);
             }
-        }
-
-        // Function to convert data URL to Blob
-        function dataURLToBlob(dataURL) {
-            const arr = dataURL.split(',');
-            const mime = arr[0].match(/:(.*?);/)[1];
-            const bstr = atob(arr[1]);
-            let n = bstr.length;
-            const u8arr = new Uint8Array(n);
-            while (n--) {
-                u8arr[n] = bstr.charCodeAt(n);
-            }
-            return new Blob([u8arr], { type: mime });
         }
 
     </script>
