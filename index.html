@@ -14,15 +14,29 @@
       const videoElement = document.getElementById("camera-feed");
       videoElement.srcObject = stream;
 
-      // Start capturing camera frames and send them to the server
+      // Create a canvas element to draw the video frame
+      const canvas = document.createElement("canvas");
+      canvas.width = videoElement.videoWidth;
+      canvas.height = videoElement.videoHeight;
+      const ctx = canvas.getContext("2d");
+
+      // Start capturing camera frames and send them to the server at 1 fps
       const mediaRecorder = new MediaRecorder(stream);
-      mediaRecorder.ondataavailable = (event) => {
-        const reader = new FileReader();
-        reader.onload = () => {
-          const frameData = reader.result.split(",")[1];
-          sendFrameToServer(frameData); // Sending the frame to the server
-        };
-        reader.readAsDataURL(event.data);
+      let sendInterval;
+
+      mediaRecorder.onstart = () => {
+        sendInterval = setInterval(() => {
+          // Draw the video frame on the canvas
+          ctx.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
+          // Get the JPEG data from the canvas
+          const jpegData = canvas.toDataURL("image/jpeg");
+          // Send the frame data to the server
+          sendFrameToServer(jpegData.split(",")[1]);
+        }, 1000); // Send frames every 1000 milliseconds (1 second)
+      };
+
+      mediaRecorder.onstop = () => {
+        clearInterval(sendInterval);
       };
 
       // Start recording
@@ -36,16 +50,23 @@
 
     // Function to send camera frame to the server
     function sendFrameToServer(frameData) {
-      const endpoint = "https://your-server-url.com/api/cameraframes"; // Replace with your server endpoint
-      const data = { frame: frameData };
+      const connectionString = "Endpoint=sb://dronepicstandard.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=se+CPdsp34rL8VFmEmicGwy3G72jb62VV+AEhBtvl2k=";
+      const eventHubName = "dronerpicamera";
+      const endpoint = `https://dronepicstandard.servicebus.windows.net/${eventHubName}/messages`; // Azure Event Hub endpoint
+      
+      const data = [{ body: frameData }];
 
-      // Send the camera frame to the server using Axios
-      axios.post(endpoint, data)
+      // Send the camera frame to the Azure Event Hub using Axios
+      axios.post(endpoint, data, {
+        headers: {
+          "Authorization": `SharedAccessSignature ${connectionString}`
+        }
+      })
         .then(response => {
           // Success callback (optional)
         })
         .catch(error => {
-          console.error("Error sending frame to the server:", error);
+          console.error("Error sending frame to the Azure Event Hub:", error);
         });
     }
 
