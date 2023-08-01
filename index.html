@@ -72,16 +72,20 @@
                     ctx.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
 
                     // Get the data URL (Base64-encoded) from the canvas
-                    canvas.toBlob(async function (blob) {
-                        const reader = new FileReader();
-                        reader.readAsDataURL(blob);
-                        reader.onloadend = function () {
-                            // Send the Base64-encoded frame data to the WebSocket
-                            if (webSocket.readyState === WebSocket.OPEN) {
-                                webSocket.send(JSON.stringify({ image_data: reader.result.split(',')[1] }));
-                            }
-                        };
-                    }, 'image/jpeg', 0.8); // 0.8 is the JPEG quality (adjust as needed)
+                    const dataURL = canvas.toDataURL('image/jpeg', 0.8); // 0.8 is the JPEG quality (adjust as needed)
+
+                    // Create a Blob object from the data URL
+                    const blob = dataURLToBlob(dataURL);
+
+                    // Use FileReader to read the Blob as data URL
+                    const reader = new FileReader();
+                    reader.readAsDataURL(blob);
+                    reader.onloadend = function () {
+                        // Send the Base64-encoded frame data to the WebSocket
+                        if (webSocket.readyState === WebSocket.OPEN) {
+                            webSocket.send(JSON.stringify({ image_data: reader.result.split(',')[1] }));
+                        }
+                    };
                 }
 
                 // Display the camera frame in the website
@@ -109,6 +113,19 @@
             } catch (error) {
                 console.error('Error capturing camera stream:', error);
             }
+        }
+
+        // Function to convert data URL to Blob
+        function dataURLToBlob(dataURL) {
+            const arr = dataURL.split(',');
+            const mime = arr[0].match(/:(.*?);/)[1];
+            const bstr = atob(arr[1]);
+            let n = bstr.length;
+            const u8arr = new Uint8Array(n);
+            while (n--) {
+                u8arr[n] = bstr.charCodeAt(n);
+            }
+            return new Blob([u8arr], { type: mime });
         }
 
     </script>
