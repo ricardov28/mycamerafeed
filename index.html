@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Camera Stream to Azure Event Hub</title>
+  <title>Camera Stream to Azure Functions</title>
 </head>
 <body>
   <h1>Camera Stream</h1>
@@ -9,6 +9,8 @@
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/0.23.0/axios.min.js"></script>
   <script>
+    let webPubSubToken = null;
+
     // Function to handle getUserMedia success
     function handleSuccess(stream) {
       const videoElement = document.getElementById("camera-feed");
@@ -20,7 +22,30 @@
       canvas.height = videoElement.videoHeight;
       const ctx = canvas.getContext("2d");
 
-      // Start capturing camera frames and send them to the server at 1 fps
+      // Function to send camera frame to the Azure Functions
+      async function sendFrameToFunctions(frameData) {
+        try {
+          if (!webPubSubToken) {
+            // Fetch the Web PubSub token from the Azure Function
+            const negotiateResponse = await axios.get("https://fromwebsitetowebpubsub.azurewebsites.net/api/negotiate");
+            webPubSubToken = negotiateResponse.data.token;
+          }
+
+          // Send the camera frame to the Azure Function using the Web PubSub token
+          const functionEndpoint = "https://fromwebsitetowebpubsub.azurewebsites.net/api/processmessage";
+          const headers = {
+            "Authorization": `Bearer ${webPubSubToken}`,
+            "Content-Type": "application/json",
+          };
+          const data = { frame: frameData };
+
+          await axios.post(functionEndpoint, data, { headers });
+        } catch (error) {
+          console.error("Error sending frame to the Azure Function:", error);
+        }
+      }
+
+      // Start capturing camera frames and send them to the Azure Functions at 1 fps
       const mediaRecorder = new MediaRecorder(stream);
       let sendInterval;
 
@@ -30,8 +55,8 @@
           ctx.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
           // Get the JPEG data from the canvas
           const jpegData = canvas.toDataURL("image/jpeg");
-          // Send the frame data to the server
-          sendFrameToServer(jpegData.split(",")[1]);
+          // Send the frame data to the Azure Functions
+          sendFrameToFunctions(jpegData.split(",")[1]);
         }, 1000); // Send frames every 1000 milliseconds (1 second)
       };
 
@@ -46,28 +71,6 @@
     // Function to handle getUserMedia error
     function handleError(error) {
       console.error("Error accessing the camera:", error);
-    }
-
-    // Function to send camera frame to the server
-    function sendFrameToServer(frameData) {
-      const connectionString = "Endpoint=sb://dronepicstandard.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=se+CPdsp34rL8VFmEmicGwy3G72jb62VV+AEhBtvl2k=";
-      const eventHubName = "dronerpicamera";
-      const endpoint = `https://dronepicstandard.servicebus.windows.net/${eventHubName}/messages`; // Azure Event Hub endpoint
-      
-      const data = [{ body: frameData }];
-
-      // Send the camera frame to the Azure Event Hub using Axios
-      axios.post(endpoint, data, {
-        headers: {
-          "Authorization": `SharedAccessSignature ${connectionString}`
-        }
-      })
-        .then(response => {
-          // Success callback (optional)
-        })
-        .catch(error => {
-          console.error("Error sending frame to the Azure Event Hub:", error);
-        });
     }
 
     // Check if getUserMedia is available in the browser
