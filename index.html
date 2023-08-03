@@ -1,117 +1,85 @@
 <!DOCTYPE html>
-<html lang="en">
-
+<html>
 <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=yes">
-    <title>Display Live Camera Stream</title>
+  <title>Camera Stream to Azure Event Hub</title>
 </head>
-
 <body>
-    <div id="imageGalleries"></div>
+  <h1>Camera Stream</h1>
+  <video id="camera-feed" autoplay></video>
 
-    <script>
-        let imageGalleriesElement;
-        let latestImages = {};
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/0.23.0/axios.min.js"></script>
+  <script>
+    // Function to handle getUserMedia success
+    function handleSuccess(stream) {
+      const videoElement = document.getElementById("camera-feed");
+      videoElement.srcObject = stream;
 
-        const DEVICE_TIMEOUT = 10000; // Time in milliseconds for device timeout
-        let webSocket;
+      // Create a canvas element to draw the video frame
+      const canvas = document.createElement("canvas");
+      canvas.width = videoElement.videoWidth;
+      canvas.height = videoElement.videoHeight;
+      const ctx = canvas.getContext("2d");
 
-        document.addEventListener("DOMContentLoaded", function (event) {
-            imageGalleriesElement = document.getElementById('imageGalleries');
+      // Start capturing camera frames and send them to the server at 1 fps
+      const mediaRecorder = new MediaRecorder(stream);
+      let sendInterval;
 
-            // Function to open WebSocket
-            async function connectWebSocket() {
-                try {
-                    const res = await fetch(`https://fromeventtoweb.azurewebsites.net/api/negotiate?id=${1}`);
-                    const data = await res.json();
-                    webSocket = new WebSocket(data.url);
+      mediaRecorder.onstart = () => {
+        sendInterval = setInterval(() => {
+          // Draw the video frame on the canvas
+          ctx.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
+          // Get the JPEG data from the canvas
+          const jpegData = canvas.toDataURL("image/jpeg");
+          // Send the frame data to the server
+          sendFrameToServer(jpegData.split(",")[1]);
+        }, 1000); // Send frames every 1000 milliseconds (1 second)
+      };
 
-                    webSocket.onopen = function onOpen() {
-                        console.log('WebSocket connection is open');
-                    };
+      mediaRecorder.onstop = () => {
+        clearInterval(sendInterval);
+      };
 
-                    webSocket.onerror = function onError(error) {
-                        console.error('WebSocket error:', error);
-                    };
+      // Start recording
+      mediaRecorder.start();
+    }
 
-                    // Start capturing and sending frames after the WebSocket is open
-                    captureAndSendFrame();
-                } catch (error) {
-                    console.error('Error fetching WebSocket data:', error);
-                }
-            }
+    // Function to handle getUserMedia error
+    function handleError(error) {
+      console.error("Error accessing the camera:", error);
+    }
 
-            // Call the function to open WebSocket
-            connectWebSocket();
-        });
+    // Function to send camera frame to the server
+    function sendFrameToServer(frameData) {
+      const connectionString = "Endpoint=sb://dronepicstandard.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=se+CPdsp34rL8VFmEmicGwy3G72jb62VV+AEhBtvl2k=";
+      const eventHubName = "dronerpicamera";
+      const endpoint = `https://dronepicstandard.servicebus.windows.net/${eventHubName}/messages`; // Azure Event Hub endpoint
+      
+      const data = [{ body: frameData }];
 
-        // Function to capture camera snapshot and send it to WebSocket
-        async function captureAndSendFrame() {
-            try {
-                const videoElement = document.createElement('video');
-
-                // Request access to the camera
-                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-
-                // Attach the video stream to the video element
-                videoElement.srcObject = stream;
-
-                // Play the video to start capturing frames
-                videoElement.play();
-
-                // Wait for the video to be fully loaded
-                await new Promise(resolve => videoElement.onloadeddata = resolve);
-
-                // Create a canvas element to draw the video frame
-                const canvas = document.createElement('canvas');
-                canvas.width = videoElement.videoWidth;
-                canvas.height = videoElement.videoHeight;
-                const ctx = canvas.getContext('2d');
-
-                // Function to capture and send camera frame to WebSocket
-                function captureAndSendFrame() {
-                    // Draw the video frame on the canvas
-                    ctx.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
-
-                    // Get the data URL (Base64-encoded) from the canvas
-                    const dataURL = canvas.toDataURL('image/jpeg', 0.8); // 0.8 is the JPEG quality (adjust as needed)
-
-                    // Send the Base64-encoded frame data to the WebSocket
-                    if (webSocket.readyState === WebSocket.OPEN) {
-                        webSocket.send(JSON.stringify({ image_data: dataURL }));
-                    }
-
-                    // Display the camera frame in the website
-                    displayFrame(dataURL);
-                }
-
-                // Function to display the camera frame in the website
-                function displayFrame(dataURL) {
-                    // Create the image element for the latest snapshot
-                    const imageElement = document.createElement('img');
-                    imageElement.src = dataURL;
-                    imageElement.style.width = '100%'; // Set the maximum width for the image (full width)
-                    imageElement.style.height = 'auto'; // Set the maximum height for the image (maintain aspect ratio)
-
-                    // Remove the last image element from the image gallery if exists
-                    const lastImageElement = imageGalleriesElement.lastChild;
-                    if (lastImageElement && lastImageElement.tagName === 'IMG') {
-                        imageGalleriesElement.removeChild(lastImageElement);
-                    }
-
-                    // Add the new image element to the image gallery
-                    imageGalleriesElement.appendChild(imageElement);
-                }
-
-                // Capture and send camera frames every 1 second (1fps)
-                setInterval(captureAndSendFrame, 1000);
-            } catch (error) {
-                console.error('Error capturing camera stream:', error);
-            }
+      // Send the camera frame to the Azure Event Hub using Axios
+      axios.post(endpoint, data, {
+        headers: {
+          "Authorization": `SharedAccessSignature ${connectionString}`
         }
+      })
+        .then(response => {
+          // Success callback (optional)
+        })
+        .catch(error => {
+          console.error("Error sending frame to the Azure Event Hub:", error);
+        });
+    }
 
-    </script>
+    // Check if getUserMedia is available in the browser
+    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+      // Request access to the camera
+      navigator.mediaDevices
+        .getUserMedia({ video: true })
+        .then(handleSuccess)
+        .catch(handleError);
+    } else {
+      console.error("getUserMedia is not available in this browser.");
+    }
+  </script>
 </body>
-
 </html>
