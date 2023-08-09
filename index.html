@@ -1,85 +1,104 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>Camera Stream to Azure Event Hub</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Camera Screenshot</title>
 </head>
 <body>
-  <h1>Camera Stream</h1>
-  <video id="camera-feed" autoplay></video>
+<video id="camera" autoplay></video>
+<button id="captureButton">Capture Screenshot</button>
+<script>
+const video = document.getElementById('camera');
+const captureButton = document.getElementById('captureButton');
 
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/0.23.0/axios.min.js"></script>
-  <script>
-    // Function to handle getUserMedia success
-    function handleSuccess(stream) {
-      const videoElement = document.getElementById("camera-feed");
-      videoElement.srcObject = stream;
+async function startCamera() {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+    video.srcObject = stream;
+  } catch (error) {
+    console.error('Error accessing camera:', error);
+  }
+}
 
-      // Create a canvas element to draw the video frame
-      const canvas = document.createElement("canvas");
-      canvas.width = videoElement.videoWidth;
-      canvas.height = videoElement.videoHeight;
-      const ctx = canvas.getContext("2d");
+async function captureScreenshot() {
+  const canvas = document.createElement('canvas');
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-      // Start capturing camera frames and send them to the server at 1 fps
-      const mediaRecorder = new MediaRecorder(stream);
-      let sendInterval;
+  // Add current date and time to the top right corner
+  const currentDate = new Date().toLocaleString();
+  ctx.font = '16px Arial';
+  ctx.fillStyle = 'white';
+  ctx.textAlign = 'right';
+  ctx.fillText(currentDate, canvas.width - 10, 20);
 
-      mediaRecorder.onstart = () => {
-        sendInterval = setInterval(() => {
-          // Draw the video frame on the canvas
-          ctx.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
-          // Get the JPEG data from the canvas
-          const jpegData = canvas.toDataURL("image/jpeg");
-          // Send the frame data to the server
-          sendFrameToServer(jpegData.split(",")[1]);
-        }, 1000); // Send frames every 1000 milliseconds (1 second)
-      };
+  // Retrieve user's current location (latitude and longitude)
+  try {
+    const position = await new Promise((resolve, reject) => {
+      navigator.geolocation.getCurrentPosition(resolve, reject);
+    });
+    const latitude = position.coords.latitude.toFixed(6);
+    const longitude = position.coords.longitude.toFixed(6);
 
-      mediaRecorder.onstop = () => {
-        clearInterval(sendInterval);
-      };
+    // Add latitude and longitude to the top left corner
+    const coordinates = `Lat: ${latitude}, Long: ${longitude}`;
+    ctx.font = '16px Arial';
+    ctx.textAlign = 'left';
+    ctx.fillText(coordinates, 10, 20);
 
-      // Start recording
-      mediaRecorder.start();
-    }
+    // Convert canvas content to a Blob
+    canvas.toBlob(async function(blob) {
+      // Set request headers for metadata
+      const headers = new Headers();
+      headers.append('x-ms-blob-type', 'BlockBlob');
+      headers.append('Content-Type', 'image/jpeg');
+      headers.append('x-ms-meta-city', 'arlington');
+      headers.append('x-ms-meta-latitude', latitude);
+      headers.append('x-ms-meta-longitude', longitude);
+      headers.append('x-ms-meta-user', 'Ricardo');
 
-    // Function to handle getUserMedia error
-    function handleError(error) {
-      console.error("Error accessing the camera:", error);
-    }
+      const now = new Date();
+      headers.append('x-ms-meta-year', now.getFullYear());
+      headers.append('x-ms-meta-month', now.toLocaleString('default', { month: 'long' }));
+      headers.append('x-ms-meta-day', now.getDate());
+      headers.append('x-ms-meta-hour', now.getHours());
+      headers.append('x-ms-meta-minute', now.getMinutes());
+      headers.append('x-ms-meta-second', now.getSeconds());
 
-    // Function to send camera frame to the server
-    function sendFrameToServer(frameData) {
-      const connectionString = "Endpoint=sb://dronepicstandard.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=se+CPdsp34rL8VFmEmicGwy3G72jb62VV+AEhBtvl2k=";
-      const eventHubName = "dronerpicamera";
-      const endpoint = `https://dronepicstandard.servicebus.windows.net/${eventHubName}/messages`; // Azure Event Hub endpoint
-      
-      const data = [{ body: frameData }];
+      // Generate blob name
+      const blobName = `ricardo-${now.getFullYear()}-${now.toLocaleString('default', { month: 'long' })}-${now.getDate()}-${now.getHours()}-${now.getMinutes()}-${now.getSeconds()}.jpg`;
 
-      // Send the camera frame to the Azure Event Hub using Axios
-      axios.post(endpoint, data, {
-        headers: {
-          "Authorization": `SharedAccessSignature ${connectionString}`
+      // Upload the Blob to Azure Blob Storage
+      const response = await fetch(
+        `https://ricostgiot123.blob.core.windows.net/fromwebapp/${blobName}?sp=racwdli&st=2023-08-05T19:24:54Z&se=2023-08-12T03:24:54Z&sv=2022-11-02&sr=c&sig=hBbJcVp1i9yEYBk9fdMCml6pxbwxesewgISl2UtrCic%3D`,
+        {
+          method: 'PUT',
+          body: blob,
+          headers: headers
         }
-      })
-        .then(response => {
-          // Success callback (optional)
-        })
-        .catch(error => {
-          console.error("Error sending frame to the Azure Event Hub:", error);
-        });
-    }
+      );
 
-    // Check if getUserMedia is available in the browser
-    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-      // Request access to the camera
-      navigator.mediaDevices
-        .getUserMedia({ video: true })
-        .then(handleSuccess)
-        .catch(handleError);
-    } else {
-      console.error("getUserMedia is not available in this browser.");
-    }
-  </script>
+      if (response.ok) {
+        console.log('Screenshot uploaded successfully');
+      } else {
+        console.error('Error uploading screenshot:', response.statusText);
+      }
+    }, 'image/jpeg');
+  } catch (error) {
+    console.error('Error retrieving location:', error);
+    // Handle the error gracefully, display a message to the user
+    ctx.font = '16px Arial';
+    ctx.fillStyle = 'red';
+    ctx.textAlign = 'left';
+    ctx.fillText('Location data not available', 10, 20);
+  }
+}
+
+window.addEventListener('DOMContentLoaded', startCamera);
+captureButton.addEventListener('click', captureScreenshot);
+</script>
 </body>
 </html>
