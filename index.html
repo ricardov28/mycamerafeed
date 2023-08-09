@@ -73,7 +73,7 @@ async function captureScreenshot() {
 
       // Upload the Blob to Azure Blob Storage
       const response = await fetch(
-        `https://ricostgiot123.blob.core.windows.net/fromwebapp/${blobName}',
+        `https://ricostgiot123.blob.core.windows.net/fromwebapp/${blobName}`,
         {
           method: 'PUT',
           body: blob,
