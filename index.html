@@ -1,104 +1,104 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Camera Screenshot</title>
-</head>
-<body>
-<video id="camera" autoplay></video>
-<button id="captureButton">Capture Screenshot</button>
-<script>
-const video = document.getElementById('camera');
-const captureButton = document.getElementById('captureButton');
-
-async function startCamera() {
-  try {
-    const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-    video.srcObject = stream;
-  } catch (error) {
-    console.error('Error accessing camera:', error);
-  }
-}
-
-async function captureScreenshot() {
-  const canvas = document.createElement('canvas');
-  canvas.width = video.videoWidth;
-  canvas.height = video.videoHeight;
-  const ctx = canvas.getContext('2d');
-  ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-  // Add current date and time to the top right corner
-  const currentDate = new Date().toLocaleString();
-  ctx.font = '16px Arial';
-  ctx.fillStyle = 'white';
-  ctx.textAlign = 'right';
-  ctx.fillText(currentDate, canvas.width - 10, 20);
-
-  // Retrieve user's current location (latitude and longitude)
-  try {
-    const position = await new Promise((resolve, reject) => {
-      navigator.geolocation.getCurrentPosition(resolve, reject);
-    });
-    const latitude = position.coords.latitude.toFixed(6);
-    const longitude = position.coords.longitude.toFixed(6);
-
-    // Add latitude and longitude to the top left corner
-    const coordinates = `Lat: ${latitude}, Long: ${longitude}`;
-    ctx.font = '16px Arial';
-    ctx.textAlign = 'left';
-    ctx.fillText(coordinates, 10, 20);
-
-    // Convert canvas content to a Blob
-    canvas.toBlob(async function(blob) {
-      // Set request headers for metadata
-      const headers = new Headers();
-      headers.append('x-ms-blob-type', 'BlockBlob');
-      headers.append('Content-Type', 'image/jpeg');
-      headers.append('x-ms-meta-city', 'arlington');
-      headers.append('x-ms-meta-latitude', latitude);
-      headers.append('x-ms-meta-longitude', longitude);
-      headers.append('x-ms-meta-user', 'Ricardo');
-
-      const now = new Date();
-      headers.append('x-ms-meta-year', now.getFullYear());
-      headers.append('x-ms-meta-month', now.toLocaleString('default', { month: 'long' }));
-      headers.append('x-ms-meta-day', now.getDate());
-      headers.append('x-ms-meta-hour', now.getHours());
-      headers.append('x-ms-meta-minute', now.getMinutes());
-      headers.append('x-ms-meta-second', now.getSeconds());
-
-      // Generate blob name
-      const blobName = `ricardo-${now.getFullYear()}-${now.toLocaleString('default', { month: 'long' })}-${now.getDate()}-${now.getHours()}-${now.getMinutes()}-${now.getSeconds()}.jpg`;
-
-      // Upload the Blob to Azure Blob Storage
-      const response = await fetch(
-        `https://ricostgiot123.blob.core.windows.net/opencv/${blobName}?sp=racwdli&st=2023-08-10T20:32:27Z&se=2023-09-01T04:32:27Z&sv=2022-11-02&sr=c&sig=BfmHG6gkYGS9X%2Fdg%2B8dN0dhNMQkldX5FLqF%2BPpq20BY%3D`,
-        {
-          method: 'PUT',
-          body: blob,
-          headers: headers
-        }
-      );
-
-      if (response.ok) {
-        console.log('Screenshot uploaded successfully');
-      } else {
-        console.error('Error uploading screenshot:', response.statusText);
-      }
-    }, 'image/jpeg');
-  } catch (error) {
-    console.error('Error retrieving location:', error);
-    // Handle the error gracefully, display a message to the user
-    ctx.font = '16px Arial';
-    ctx.fillStyle = 'red';
-    ctx.textAlign = 'left';
-    ctx.fillText('Location data not available', 10, 20);
-  }
-}
-
-window.addEventListener('DOMContentLoaded', startCamera);
-captureButton.addEventListener('click', captureScreenshot);
-</script>
-</body>
-</html>
+<!DOCTYPE html>  
+<html lang="en">  
+<head>  
+<meta charset="UTF-8">  
+<meta name="viewport" content="width=device-width, initial-scale=1.0">  
+<title>Camera Screenshot</title>  
+</head>  
+<body>  
+<video id="camera" autoplay></video>  
+<button id="captureButton">Capture Screenshot</button>  
+<script>  
+const video = document.getElementById('camera');  
+const captureButton = document.getElementById('captureButton');  
+  
+async function startCamera() {  
+  try {  
+    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });  
+    video.srcObject = stream;  
+  } catch (error) {  
+    console.error('Error accessing camera:', error);  
+  }  
+}  
+  
+async function captureScreenshot() {  
+  const canvas = document.createElement('canvas');  
+  canvas.width = video.videoWidth;  
+  canvas.height = video.videoHeight;  
+  const ctx = canvas.getContext('2d');  
+  ctx.drawImage(video, 0, 0, canvas.width, canvas.height);  
+  
+  // Add current date and time to the top right corner  
+  const currentDate = new Date().toLocaleString();  
+  ctx.font = '16px Arial';  
+  ctx.fillStyle = 'white';  
+  ctx.textAlign = 'right';  
+  ctx.fillText(currentDate, canvas.width - 10, 20);  
+  
+  // Retrieve user's current location (latitude and longitude)  
+  try {  
+    const position = await new Promise((resolve, reject) => {  
+      navigator.geolocation.getCurrentPosition(resolve, reject);  
+    });  
+    const latitude = position.coords.latitude.toFixed(6);  
+    const longitude = position.coords.longitude.toFixed(6);  
+  
+    // Add latitude and longitude to the top left corner  
+    const coordinates = `Lat: ${latitude}, Long: ${longitude}`;  
+    ctx.font = '16px Arial';  
+    ctx.textAlign = 'left';  
+    ctx.fillText(coordinates, 10, 20);  
+  
+    // Convert canvas content to a Blob  
+    canvas.toBlob(async function(blob) {  
+      // Set request headers for metadata  
+      const headers = new Headers();  
+      headers.append('x-ms-blob-type', 'BlockBlob');  
+      headers.append('Content-Type', 'image/jpeg');  
+      headers.append('x-ms-meta-city', 'arlington');  
+      headers.append('x-ms-meta-latitude', latitude);  
+      headers.append('x-ms-meta-longitude', longitude);  
+      headers.append('x-ms-meta-user', 'Ricardo');  
+  
+      const now = new Date();  
+      headers.append('x-ms-meta-year', now.getFullYear());  
+      headers.append('x-ms-meta-month', now.toLocaleString('default', { month: 'long' }));  
+      headers.append('x-ms-meta-day', now.getDate());  
+      headers.append('x-ms-meta-hour', now.getHours());  
+      headers.append('x-ms-meta-minute', now.getMinutes());  
+      headers.append('x-ms-meta-second', now.getSeconds());  
+  
+      // Generate blob name  
+      const blobName = `ricardo-${now.getFullYear()}-${now.toLocaleString('default', { month: 'long' })}-${now.getDate()}-${now.getHours()}-${now.getMinutes()}-${now.getSeconds()}.jpg`;  
+  
+      // Upload the Blob to Azure Blob Storage  
+      const response = await fetch(  
+        `https://ricostgiot123.blob.core.windows.net/opencv/${blobName}?sp=racwdli&st=2023-08-10T20:32:27Z&se=2023-09-01T04:32:27Z&sv=2022-11-02&sr=c&sig=BfmHG6gkYGS9X%2Fdg%2B8dN0dhNMQkldX5FLqF%2BPpq20BY%3D`,  
+        {  
+          method: 'PUT',  
+          body: blob,  
+          headers: headers  
+        }  
+      );  
+  
+      if (response.ok) {  
+        console.log('Screenshot uploaded successfully');  
+      } else {  
+        console.error('Error uploading screenshot:', response.statusText);  
+      }  
+    }, 'image/jpeg');  
+  } catch (error) {  
+    console.error('Error retrieving location:', error);  
+    // Handle the error gracefully, display a message to the user  
+    ctx.font = '16px Arial';  
+    ctx.fillStyle = 'red';  
+    ctx.textAlign = 'left';  
+    ctx.fillText('Location data not available', 10, 20);  
+  }  
+}  
+  
+window.addEventListener('DOMContentLoaded', startCamera);  
+captureButton.addEventListener('click', captureScreenshot);  
+</script>  
+</body>  
+</html>  
